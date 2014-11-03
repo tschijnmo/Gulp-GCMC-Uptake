@@ -9,20 +9,30 @@ from numpy import linalg
 import periodic
 
 
-def get_fin_symbs(lines):
+def get_init_symbs(lines):
 
-    """Gets the symbols of the final set of atoms
+    """Gets the symbols of the initial set of atoms
 
     :param lines: The lines in the output file
 
     """
 
-    final_coord_sentinel = re.compile('Final fractional coordinates of atoms')
+    init_coord_beg_sentinel = re.compile(
+        'Fractional coordinates of asymmetric unit'
+        )
+    init_coord_end_sentinel = re.compile(
+        'Molecule list generated from bond lengths'
+        )
     coord_re = re.compile(r'\d+\s+(\w+)\s+[cs]\s+\d+\.\d+\s+\d+\.\d+')
 
-    sentinel_idx = next(i for i, v in enumerate(lines) 
-		        if final_coord_sentinel.search(v) != None)
-    coord_search = [coord_re.search(l) for l in lines[sentinel_idx:]]
+    beg_sentinel_idx = next(i for i, v in enumerate(lines) 
+                            if init_coord_beg_sentinel.search(v) != None)
+    end_sentinel_idx = next(i for i, v in enumerate(lines) 
+                            if init_coord_end_sentinel.search(v) != None)
+
+    coord_search = [
+        coord_re.search(l) for l in lines[beg_sentinel_idx:end_sentinel_idx]
+        ]
     symbols = [i.group(1) for i in coord_search if i != None]
 
     return symbols
@@ -35,8 +45,8 @@ def get_volume(lines):
 
     """
 
-    begin_sentinel = re.compile('Final Cartesian lattice vectors')
-    end_sentinel = re.compile('Final cell parameters')
+    begin_sentinel = re.compile(r'^ *Cartesian lattice vectors \(Angstroms\)')
+    end_sentinel = re.compile(r'^ *Cell parameters')
     lattice_re = re.compile(r'(\d+\.\d+)\s+(\d+\.\d+)\s+(\d+\.\d+)')
 
     begin_idx = next(i for i, v in enumerate(lines) 
@@ -115,7 +125,7 @@ def main():
     lines = [i for i in output_file]
     output_file.close()
 
-    symbs = get_fin_symbs(lines)
+    symbs = get_init_symbs(lines)
     vol = get_volume(lines)
     subs_wgt, subs_n_atm = get_subs_weight(symbs, ads_symb)
     ads_wgt = (get_mean_n_atms(lines) - subs_n_atm) * get_atm_weight(ads_symb)
